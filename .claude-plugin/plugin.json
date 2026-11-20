@@ -1,0 +1,7 @@
+{
+  "name": "crab-crew",
+  "version": "0.1.0",
+  "description": "Your running subagents as a crew of animated pixel crabs, each with its own character.",
+  "author": { "name": "IMAD" },
+  "types": "./types/index.d.ts"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "crab-crew",
+  "owner": { "name": "IMAD" },
+  "plugins": [
+    {
+      "name": "crab-crew",
+      "source": "./",
+      "description": "Your running subagents as a crew of animated pixel crabs, each with its own character.",
+      "author": { "name": "IMAD" }
+    }
+  ]
+}
