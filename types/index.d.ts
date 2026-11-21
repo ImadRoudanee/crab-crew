@@ -9,6 +9,7 @@ declare module 'claude-code' {
       roster: Record<string, number>
       work: Record<string, CrabWork>
       frame: number
+      nextSeat: number
       asks: Record<string, CrabAsk>
     }
   }

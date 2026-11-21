@@ -14,6 +14,7 @@ const agents = atom({ plugin: 'crab-crew', key: 'agents' } as const, [] as CrabA
 const roster = atom({ plugin: 'crab-crew', key: 'roster' } as const, {} as Record<string, number>)
 const work = atom({ plugin: 'crab-crew', key: 'work' } as const, {} as Record<string, CrabWork>)
 const frame = atom({ plugin: 'crab-crew', key: 'frame' } as const, 0)
+const nextSeat = atom({ plugin: 'crab-crew', key: 'nextSeat' } as const, 0)
 const asks = atom({ plugin: 'crab-crew', key: 'asks' } as const, {} as Record<string, CrabAsk>)
 
 const VERB: Record<string, string> = { Write: 'create', Edit: 'edit', NotebookEdit: 'edit', Bash: 'run', PowerShell: 'run', WebFetch: 'fetch', WebSearch: 'search' }
@@ -50,12 +51,17 @@ async function poll($: EngineInterface) {
   const next: CrabAgent[] = list.map(a => ({ id: a.id, description: a.description, status: a.status, type: a.type }))
   const before = await read($, agents)
   if (JSON.stringify(before) !== JSON.stringify(next)) {
+    // A new batch (nothing was running before) starts the seats over, so the first crab of
+    // every batch is seat 0: Kabour. Crabs joining a running batch carry on counting.
+    const wasActive = before.some(a => isActive(a.status))
     await update($, agents, () => next)
+    let seat = wasActive ? await read($, nextSeat) : 0
     await update($, roster, r => {
       const out = { ...r }
-      for (const a of next) if (out[a.id] === undefined) out[a.id] = Object.keys(out).length
+      for (const a of next) if (out[a.id] === undefined) out[a.id] = seat++
       return out
     })
+    await update($, nextSeat, () => seat)
   }
   if (next.some(a => isActive(a.status))) await update($, frame, f => (f + 1) % 10_000)
 }
