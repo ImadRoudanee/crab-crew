@@ -25,6 +25,7 @@ export const PAL: Record<string, string> = {
   Z: '#8C9BC4',
   V: '#2FB36B', // done check
   X: '#8A8A8A', // failed body
+  M: '#4A4A4A', // beard shine
 }
 
 export type Layer = { y: number; rows: string[] }
@@ -87,8 +88,19 @@ export type Look = {
 }
 
 export const LOOKS: Look[] = [
-  // Pinchy: the classic
-  { hat: [], eyes: EYES, quirk: 'none', walkSec: 1.6, clawSec: 0.5, hop: false },
+  // Kabour: red tarbouch with a black tassel, and a full black beard
+  { hat: [
+      L(-1,
+        '......RRRR......',
+        '.....RRRRRR.....',
+        '.....RRRRRR..K..',
+        '....RRRRRRRR.K..',
+        '....RRRRRRRR.KK.'),
+      L(8,
+        '......KKKK......',
+        '......KKKK......',
+        '.......KK.......'),
+    ], eyes: EYES, quirk: 'none', walkSec: 1.6, clawSec: 0.5, hop: false },
   // Sir Clawsworth: top hat + monocle
   { hat: [
       L(-1, '......KKKK......', '......KKKK......', '......KKKK......', '......RRRR......', '....KKKKKKKK....'),
@@ -116,9 +128,18 @@ export const LOOKS: Look[] = [
   { hat: [], eyes: EYES_WIDE, quirk: 'sweat',
     quirkLayer: L(4, '...............S', '...............S'),
     walkSec: 0.7, clawSec: 0.25, hop: false },
-  // Baby Bo: pink bow
-  { hat: [L(2, '.....FF..FF.....', '.....FFQQFF.....')],
-    eyes: EYES, quirk: 'none', walkSec: 1.2, clawSec: 0.45, hop: true },
+  // Chaaybia: purple headscarf with pink dots, lashes, red lips, gold earrings
+  { hat: [
+      L(0,
+        '......PPPP......',
+        '....PPPPPPPP....',
+        '...PPPFPPFPPP...',
+        '..PPPPPPPPPPPP..'),
+      L(4, '.PP..........PP.', '.PP..........PP.'),
+      L(4, '...K.K....K.K...'),
+      L(6, '.G............G.'),
+      L(7, '......RRRR......'),
+    ], eyes: EYES, quirk: 'none', walkSec: 1.2, clawSec: 0.45, hop: true },
 ]
 
 // ---------- SVG (desktop, vscode, mobile): animated with CSS ----------

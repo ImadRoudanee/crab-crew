@@ -31,14 +31,14 @@ type Persona = { name: string; color: string; chatter: string[]; doneLine: strin
 
 // Same order as LOOKS in sprites.ts.
 const PERSONAS: Persona[] = [
-  { name: 'Pinchy', color: '#D97757', chatter: ['snip snip!', 'on it, boss', 'pinching data…'], doneLine: 'all snipped!' },
+  { name: 'Kabour', color: '#C0392B', chatter: ['bismillah…', 'wakha, wakha', 'chwiya b chwiya'], doneLine: 'safi, salina!' },
   { name: 'Sir Clawsworth', color: '#C9A227', chatter: ['Indubitably.', 'Most irregular…', 'Quite, quite.'], doneLine: 'Splendid work.' },
   { name: 'Grumpy Gus', color: '#B4533A', chatter: ['hmph.', 'who wrote this?', 'more files…'], doneLine: 'finally. hmph.' },
   { name: 'Disco Dee', color: '#B05CE0', chatter: ['♪ crab fever ♪', 'shake those claws', '♫ la la la ♫'], doneLine: '♪ that’s a wrap ♪' },
   { name: 'Sleepy Sam', color: '#3B7DDD', chatter: ['zzz…', '…five more cases…', 'mm? reading…'], doneLine: 'nap time. zzz' },
   { name: 'Cool Carl', color: '#2A9DB5', chatter: ['chill.', 'no stress', 'smooth sailing'], doneLine: 'easy.' },
   { name: 'Nervous Ned', color: '#2FB36B', chatter: ['is this right?!', 'eek, a quote!', 'checking twice…'], doneLine: 'phew, done!' },
-  { name: 'Baby Bo', color: '#E0609A', chatter: ['me help!', 'blub blub', 'wheee'], doneLine: 'me did it!' },
+  { name: 'Chaaybia', color: '#B05CE0', chatter: ['yallah yallah!', 'a lalla…', 'hania, hania'], doneLine: 'hamdullah, safi!' },
 ]
 
 const isActive = (s: string) => s === 'running' || s === 'pending'
