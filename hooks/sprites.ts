@@ -106,6 +106,22 @@ export const LOOKS: Look[] = [
       L(-1, '......KKKK......', '......KKKK......', '......KKKK......', '......RRRR......', '....KKKKKKKK....'),
       L(4, '..........GGG...', '..........G.G...', '..........G.G...', '..........GGG...', '............G...'),
     ], eyes: EYES, quirk: 'none', walkSec: 2.2, clawSec: 0.9, hop: false },
+  // Hmida: brown djellaba hood, always sleepy
+  { hat: [
+      L(0,
+        '.......NN.......',
+        '......NNNN......',
+        '.....NNNNNN.....',
+        '....NNNNNNNN....'),
+      L(4, '.NN..........NN.', '.NN..........NN.'),
+    ], eyes: EYES_SLEEPY, quirk: 'none', walkSec: 3.4, clawSec: 1.4, hop: false },
+  // Boubker: football fan, red and green headband, always hyped
+  { hat: [
+      L(2, '....KKKKKKKK....'),
+      L(3, '....RRVVVVRR....'),
+    ], eyes: EYES_WIDE, quirk: 'sparkle',
+    quirkLayer: L(-3, '.Y............Y.', 'YYY..........YYY', '.Y............Y.'),
+    walkSec: 0.8, clawSec: 0.25, hop: true },
   // Grumpy Gus: angry brows
   { hat: [L(4, '...KK......KK...', '.....K....K.....')],
     eyes: EYES, quirk: 'none', walkSec: 2.0, clawSec: 0.35, hop: false },
@@ -128,18 +144,6 @@ export const LOOKS: Look[] = [
   { hat: [], eyes: EYES_WIDE, quirk: 'sweat',
     quirkLayer: L(4, '...............S', '...............S'),
     walkSec: 0.7, clawSec: 0.25, hop: false },
-  // Chaaybia: purple headscarf with pink dots, lashes, red lips, gold earrings
-  { hat: [
-      L(0,
-        '......PPPP......',
-        '....PPPPPPPP....',
-        '...PPPFPPFPPP...',
-        '..PPPPPPPPPPPP..'),
-      L(4, '.PP..........PP.', '.PP..........PP.'),
-      L(4, '...K.K....K.K...'),
-      L(6, '.G............G.'),
-      L(7, '......RRRR......'),
-    ], eyes: EYES, quirk: 'none', walkSec: 1.2, clawSec: 0.45, hop: true },
 ]
 
 // ---------- SVG (desktop, vscode, mobile): animated with CSS ----------

@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { CrabAgent, CrabAsk, CrabWork } from '../types'
+import type { CrabAgent, CrabAsk, CrabCall, CrabWork } from '../types'
 import { crabCells, crabGrid, crabSvg } from './sprites'
 import type { Mood } from './sprites'
 
@@ -16,6 +16,13 @@ const work = atom({ plugin: 'crab-crew', key: 'work' } as const, {} as Record<st
 const frame = atom({ plugin: 'crab-crew', key: 'frame' } as const, 0)
 const nextSeat = atom({ plugin: 'crab-crew', key: 'nextSeat' } as const, 0)
 const asks = atom({ plugin: 'crab-crew', key: 'asks' } as const, {} as Record<string, CrabAsk>)
+// What each subagent has done so far (newest last), and which crab's detail view is open.
+const log = atom({ plugin: 'crab-crew', key: 'log' } as const, {} as Record<string, CrabCall[]>)
+const selected = atom({ plugin: 'crab-crew', key: 'selected' } as const, null as string | null)
+
+const DOING: Record<string, string> = { Write: 'creating', Edit: 'editing', NotebookEdit: 'editing', Read: 'reading', Bash: 'running', PowerShell: 'running', Grep: 'searching', Glob: 'listing', WebFetch: 'fetching', WebSearch: 'searching' }
+const DONE: Record<string, string> = { Write: 'created', Edit: 'edited', NotebookEdit: 'edited', Read: 'read', Bash: 'ran', PowerShell: 'ran', Grep: 'searched', Glob: 'listed', WebFetch: 'fetched', WebSearch: 'searched' }
+const phrase = (c: CrabCall) => `${(c.done ? DONE : DOING)[c.tool] ?? c.tool} ${c.target}`.trim()
 
 const VERB: Record<string, string> = { Write: 'create', Edit: 'edit', NotebookEdit: 'edit', Bash: 'run', PowerShell: 'run', WebFetch: 'fetch', WebSearch: 'search' }
 const baseName = (p: string) => p.split(/[\\/]/).filter(Boolean).pop() ?? p
@@ -23,7 +30,7 @@ const baseName = (p: string) => p.split(/[\\/]/).filter(Boolean).pop() ?? p
 // What the permission ask is about: the file for file tools, the command for shells.
 function targetOf(input: unknown): string {
   const i = (input ?? {}) as Record<string, unknown>
-  const raw = i.file_path ?? i.notebook_path ?? i.command ?? i.url ?? i.query ?? ''
+  const raw = i.file_path ?? i.notebook_path ?? i.command ?? i.url ?? i.query ?? i.pattern ?? ''
   const s = String(raw)
   return i.file_path || i.notebook_path ? baseName(s) : s.replace(/\s+/g, ' ').slice(0, 40)
 }
@@ -34,12 +41,13 @@ type Persona = { name: string; color: string; chatter: string[]; doneLine: strin
 const PERSONAS: Persona[] = [
   { name: 'Kabour', color: '#C0392B', chatter: ['bismillah…', 'wakha, wakha', 'chwiya b chwiya'], doneLine: 'safi, salina!' },
   { name: 'Sir Clawsworth', color: '#C9A227', chatter: ['Indubitably.', 'Most irregular…', 'Quite, quite.'], doneLine: 'Splendid work.' },
+  { name: 'Hmida', color: '#8A5A3B', chatter: ['zzz…', 'chwiya dyal noum', 'mazal chwiya…'], doneLine: 'noum, safi.' },
+  { name: 'Boubker', color: '#E04848', chatter: ['yallah l goal!', 'dima Maghrib!', 'hia hia!'], doneLine: 'dima Maghrib!' },
   { name: 'Grumpy Gus', color: '#B4533A', chatter: ['hmph.', 'who wrote this?', 'more files…'], doneLine: 'finally. hmph.' },
   { name: 'Disco Dee', color: '#B05CE0', chatter: ['♪ crab fever ♪', 'shake those claws', '♫ la la la ♫'], doneLine: '♪ that’s a wrap ♪' },
   { name: 'Sleepy Sam', color: '#3B7DDD', chatter: ['zzz…', '…five more cases…', 'mm? reading…'], doneLine: 'nap time. zzz' },
   { name: 'Cool Carl', color: '#2A9DB5', chatter: ['chill.', 'no stress', 'smooth sailing'], doneLine: 'easy.' },
   { name: 'Nervous Ned', color: '#2FB36B', chatter: ['is this right?!', 'eek, a quote!', 'checking twice…'], doneLine: 'phew, done!' },
-  { name: 'Chaaybia', color: '#B05CE0', chatter: ['yallah yallah!', 'a lalla…', 'hania, hania'], doneLine: 'hamdullah, safi!' },
 ]
 
 const isActive = (s: string) => s === 'running' || s === 'pending'
@@ -123,14 +131,22 @@ export const register: Register = on => {
   // Count tool calls made inside each subagent's loop, and clear its ask once answered.
   on('tool.call', async ($, e, next) => {
     const id = e.agentId
+    const callId = e.tool_use_id
     if (id) {
       void update($, work, w => {
         const cur = w[id] ?? { tools: 0, lastTool: '' }
         return { ...w, [id]: { tools: cur.tools + 1, lastTool: e.tool } }
       }).catch(() => undefined)
+      const entry: CrabCall = { id: callId, tool: e.tool, target: targetOf(e), done: false, failed: false }
+      await update($, log, l => ({ ...l, [id]: [...(l[id] ?? []), entry].slice(-80) })).catch(() => undefined)
     }
     const ran = await next(e)
     if (id) {
+      const failed = !!(ran as { isError?: boolean }).isError
+      await update($, log, l => ({
+        ...l,
+        [id]: (l[id] ?? []).map(c => (c.id === callId ? { ...c, done: true, failed } : c)),
+      })).catch(() => undefined)
       await update($, asks, a => {
         if (!(id in a)) return a
         const { [id]: _gone, ...rest } = a
@@ -172,46 +188,70 @@ export const register: Register = on => {
       return { a, seat, p, mood, job, say, statusWord }
     })
 
-    if (e.surface === 'terminal') {
-      const { Box, Text, Raster } = $.ui.resolve(e)
+    const sel = await read($, selected)
+    const el = $.ui.resolve(e) as any
+    const { Box, Text, Button, Raster, Svg } = el
+
+    const sprite = (r: (typeof rows)[number]) => {
+      if (isTerminal) {
+        const art = crabCells(crabGrid(r.seat, r.mood, f))
+        return <Raster key={`crab-${r.a.id}`} columns={art.columns} rows={art.rows} cells={art.cells} />
+      }
+      return (
+        <Svg
+          source={crabSvg(r.seat, r.mood, 4)}
+          alt={`${r.p.name}, a pixel crab, ${r.statusWord}`}
+          width={80}
+          height={72}
+          isInteractive
+        />
+      )
+    }
+
+    const open = rows.find(r => r.a.id === sel)
+    if (open) {
+      const calls = (await read($, log))[open.a.id] ?? []
+      const room = Math.max(8, (e.viewport?.rows ?? 30) - 12)
+      const shown = calls.slice(-room)
+
       return (
         <Box flexDirection="column">
-          <Text bold>{head}</Text>
-          {list.length === 0 && <Text dimColor>The beach is empty. No subagents yet.</Text>}
-          {rows.map(r => {
-            const art = crabCells(crabGrid(r.seat, r.mood, f))
-            return (
-              <Box flexDirection="row" marginTop={1}>
-                <Raster key={`crab-${r.a.id}`} columns={art.columns} rows={art.rows} cells={art.cells} />
-                <Box flexDirection="column" marginLeft={1}>
-                  <Text color={r.p.color} bold>{r.p.name}</Text>
-                  <Text dimColor>{r.statusWord}{r.job ? ` · ${r.job.tools} tools` : ''}</Text>
-                  <Text italic>“{r.say}”</Text>
-                  <Text dimColor wrap="truncate-end">{r.a.description.slice(0, width)}</Text>
-                </Box>
-              </Box>
-            )
-          })}
+          <Button key="back" label="‹ Back to the crew" onPress={() => update($, selected, () => null)} />
+          <Box flexDirection="row" marginTop={1}>
+            {sprite(open)}
+            <Box flexDirection="column" marginLeft={1}>
+              <Text color={open.p.color} bold>{open.p.name}</Text>
+              <Text dimColor>{open.statusWord} · {calls.length} actions</Text>
+              <Text dimColor wrap="truncate-end">{open.a.description.slice(0, width)}</Text>
+            </Box>
+          </Box>
+          <Box flexDirection="column" marginTop={1}>
+            <Text bold>Actions</Text>
+            {calls.length === 0 && <Text dimColor>No actions yet.</Text>}
+            {calls.length > shown.length && <Text dimColor>… {calls.length - shown.length} earlier</Text>}
+            {shown.map(c => (
+              <Text dimColor={c.done && !c.failed} color={c.failed ? 'red' : undefined}>
+                {c.failed ? '✗' : c.done ? '✓' : '…'} {phrase(c)}
+              </Text>
+            ))}
+          </Box>
         </Box>
       )
     }
 
-    const { Box, Text, Svg } = $.ui.resolve(e)
     return (
       <Box flexDirection="column">
         <Text bold>{head}</Text>
         {list.length === 0 && <Text dimColor>The beach is empty. No subagents yet.</Text>}
         {rows.map(r => (
           <Box flexDirection="row" marginTop={1}>
-            <Svg
-              source={crabSvg(r.seat, r.mood, 4)}
-              alt={`${r.p.name}, a pixel crab, ${r.statusWord}`}
-              width={80}
-              height={72}
-              isInteractive
-            />
+            {sprite(r)}
             <Box flexDirection="column" marginLeft={1}>
-              <Text color={r.p.color} bold>{r.p.name}</Text>
+              <Box flexDirection="row">
+                <Text color={r.p.color} bold>{r.p.name}</Text>
+                <Text> </Text>
+                <Button key={`view-${r.a.id}`} plain dimColor label=">" onPress={() => update($, selected, () => r.a.id)} />
+              </Box>
               <Text dimColor>{r.statusWord}{r.job ? ` · ${r.job.tools} tools` : ''}{r.mood === 'working' && r.job?.lastTool ? ` · ${r.job.lastTool}` : ''}</Text>
               <Text italic>“{r.say}”</Text>
               <Text dimColor wrap="truncate-end">{r.a.description.slice(0, width)}</Text>
